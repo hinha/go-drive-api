@@ -35,7 +35,8 @@ func NewOAuthClient() AuthDrive {
 		log.Fatalf("Unable to read client secret file: %v", err)
 	}
 	// If modifying these scopes, delete your previously saved token.json.
-	config, err := google.ConfigFromJSON(b, drive_v3.DriveMetadataReadonlyScope)
+	// config, err := google.ConfigFromJSON(b, drive_v3.DriveMetadataReadonlyScope)
+	config, err := google.ConfigFromJSON(b, drive_v3.DriveMetadataScope, drive_v3.DriveFileScope)
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
