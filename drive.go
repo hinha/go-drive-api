@@ -4,6 +4,8 @@ import (
 	"fmt"
 	drive_v2 "google.golang.org/api/drive/v2"
 	drive_v3 "google.golang.org/api/drive/v3"
+	"io/ioutil"
+	"mime/multipart"
 )
 
 type googleDrive struct {
@@ -15,6 +17,8 @@ type GoogleDrive interface {
 	FilesList(pageSize int64) (*drive_v3.FileList, error)
 	AllChildren(folderID string) ([]*drive_v2.ChildReference, error)
 	FileDetails(fileID string) (*drive_v3.File, error)
+	Upload(file multipart.File, filename string, folderId string) (*drive_v3.File, error)
+	Download(fileId string) ([]byte, string, error)
 }
 
 func NewDriveService(service_v3 *drive_v3.Service, service_v2 *drive_v2.Service) GoogleDrive {
@@ -67,4 +71,30 @@ func (s *googleDrive) FileDetails(fileID string) (*drive_v3.File, error) {
 	}
 
 	return file, nil
+}
+
+func (s *googleDrive) Upload(file multipart.File, filename string, folderId string) (*drive_v3.File, error) {
+	driveFile, err := s.service_v3.Files.Create(&drive_v3.File{Name: filename, Parents: []string{folderId}}).Media(file).Do()
+	if err != nil {
+		return nil, err
+	}
+	return driveFile, nil
+}
+
+// Download of files stored in Google Drive
+// fileId provide file location
+// data, content-type
+func (s *googleDrive) Download(fileId string) ([]byte, string, error) {
+	response, err := s.service_v3.Files.Get(fileId).Download()
+	if err != nil {
+		return nil, "", err
+	}
+	defer response.Body.Close()
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return body, response.Header.Get("Content-Type"), nil
 }

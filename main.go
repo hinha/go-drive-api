@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
@@ -96,6 +97,49 @@ func main() {
 		w.Write(files)
 	})
 
+	r.HandleFunc("/drive/upload/{folderId}", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		file, handler, err := r.FormFile("file")
+		if err != nil {
+			panic(err)
+		}
+		defer file.Close()
+
+		service, err := oauth.DriveService(r.Context())
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+
+		upload, err := service.Upload(file, handler.Filename, vars["folderId"])
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		files, _ := json.Marshal(upload)
+		w.WriteHeader(http.StatusOK)
+		w.Write(files)
+	})
+	r.HandleFunc("/drive/download/{fileId}", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+
+		service, err := oauth.DriveService(r.Context())
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+
+		download, contentType, err := service.Download(vars["fileId"])
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+
+		file := base64.StdEncoding.EncodeToString(download)
+		files, _ := json.Marshal(map[string]string{"mimeType": contentType, "base64": file})
+		w.WriteHeader(http.StatusOK)
+		w.Write(files)
+	})
 	srv := &http.Server{
 		Handler: r,
 		Addr:    "127.0.0.1:9099",
